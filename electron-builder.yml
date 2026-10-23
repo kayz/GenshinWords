@@ -1,0 +1,36 @@
+appId: com.genshinwords.app
+productName: GenshinWords
+copyright: 'Copyright © 2026 GenshinWords'
+
+directories:
+  buildResources: resources
+  output: dist
+
+asar: true
+# 应用包只包含运行代码；依赖由 electron-builder 自动收集。
+files:
+  - out/**/*
+  - package.json
+
+# 数据库与素材在运行时以本地文件读取，全部封入最终便携 EXE。
+extraResources:
+  - from: content
+    to: content
+    filter:
+      - '**/*'
+  - from: resources
+    to: icons
+    filter:
+      - icon.ico
+      - icon.png
+
+win:
+  executableName: GenshinWords
+  icon: resources/icon.ico
+  target:
+    - target: portable
+      arch:
+        - x64
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

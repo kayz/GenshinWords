@@ -1,0 +1,57 @@
+appId: com.genshinwords.app
+productName: GenshinWords
+copyright: 'Copyright © 2026 GenshinWords'
+
+directories:
+  buildResources: resources
+  output: dist/installer
+
+asar: true
+files:
+  - out/**/*
+  - package.json
+
+# The installer carries the program and independently versioned built-in reading
+# and word packages. Base databases and raw media are imported separately.
+extraResources:
+  - from: content/reading/base.gwreading
+    to: content/reading/base.gwreading
+  - from: content/word-books
+    to: content/word-books
+    filter:
+      - cet4.gwwords
+      - cet6.gwwords
+      - gaokao.gwwords
+      - ielts.gwwords
+      - kaoyan.gwwords
+      - sh_gaokao.gwwords
+      - sh_zhongkao.gwwords
+      - tem4.gwwords
+      - tem8.gwwords
+      - toefl.gwwords
+      - zhongkao.gwwords
+  - from: resources
+    to: icons
+    filter:
+      - icon.ico
+      - icon.png
+
+win:
+  executableName: GenshinWords
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  include: build/installer-base.nsh
+  artifactName: ${productName}-${version}-setup-x64.${ext}
+  oneClick: false
+  perMachine: false
+  selectPerMachineByDefault: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  packElevateHelper: false
+  deleteAppDataOnUninstall: false
+  runAfterFinish: false

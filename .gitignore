@@ -1,0 +1,33 @@
+node_modules/
+out/
+dist/
+.DS_Store
+*.log
+.npmrc
+.eslintcache
+.env
+.env.*
+!.env.example
+
+# 离线内容、作者资料和发行包通过独立下载地址分发，不提交到 GitHub。
+/content/
+/content-library/base/
+/content-library/examples/
+/content-library/word-books/
+/reading-library/base/
+/reading-library/examples/
+/staging/
+/docs/*.json
+/.github/workflows/
+*.db
+*.gwcontent
+*.gwwords
+*.gwreading
+
+# 个人学习进度不属于公开项目资料。
+progress.db
+progress.db-*
+/_backup/
+
+# 本地制作的发行附件不提交。
+/release/
