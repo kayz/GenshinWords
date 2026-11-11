@@ -36,7 +36,12 @@ async function waitFor(code) {
 async function click(label) {
   const text = JSON.stringify(label);
   await waitFor(`Array.from(document.querySelectorAll('button,a')).some(el=>el.textContent.trim()===${text}&&!el.disabled)`);
-  await evaluate(`Array.from(document.querySelectorAll('button,a')).find(el=>el.textContent.trim()===${text}&&!el.disabled).click()`);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const clicked = await evaluate(`(()=>{const el=Array.from(document.querySelectorAll('button,a')).find(candidate=>candidate.textContent.trim()===${text}&&!candidate.disabled);if(!el)return false;el.click();return true;})()`);
+    if (clicked) return;
+    await delay(80);
+  }
+  assert.fail('Clickable control disappeared before click: ' + label);
 }
 async function open(hash, ready) {
   await win.loadFile(path.join(root, 'out/renderer/index.html'), { hash, query: { readingPackageAuditRun: String(++pageRun) } });
@@ -123,7 +128,11 @@ async function directory() {
 async function openUnit(id) {
   const selector = JSON.stringify('[data-reading-unit="' + id + '"] button');
   await waitFor(`!!document.querySelector(${selector})&&!document.querySelector(${selector}).disabled`);
-  await evaluate(`document.querySelector(${selector}).click()`);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const clicked = await evaluate(`(()=>{const el=document.querySelector(${selector});if(!el||el.disabled)return false;el.click();return true;})()`);
+    if (clicked) break;
+    await delay(80);
+  }
   await waitFor('!!document.querySelector("img.rd-banner")?.naturalWidth&&!!document.querySelector(".rd-question")');
 }
 async function previewFile(file, action) {

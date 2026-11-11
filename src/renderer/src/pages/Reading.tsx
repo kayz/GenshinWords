@@ -410,7 +410,10 @@ export default function Reading() {
             <div className="gw-panel rd-analysis-block"><h3>答案解析</h3>{analysis.questions.map((item) => {
               const index = unit.questions.findIndex((question) => question.id === item.questionId);
               const question = unit.questions[index], result = paper?.questionResults[item.questionId];
-              const answer = question?.options?.find((option) => option.id === answers[item.questionId])?.text || answers[item.questionId];
+              const chosen = answers[item.questionId] || '';
+              const answer = question?.type === 'multi' && chosen
+                ? chosen.split(',').map((id) => question.options?.find((option) => option.id === id)?.text || id).join('；')
+                : question?.options?.find((option) => option.id === answers[item.questionId])?.text || answers[item.questionId];
               return <article key={item.questionId} id={'reading-analysis-q-' + item.questionId} className="rd-answer-explanation">
                 <h4>第 {index + 1} 题{result ? <span className={result.correct ? 'rd-verdict-correct' : 'rd-verdict-wrong'}>{result.correct ? '答对啦' : '再看看这里'}</span> : null}</h4>
                 <p className="gw-muted">你的答案：<span lang="en">{answer || '还没作答'}</span></p>

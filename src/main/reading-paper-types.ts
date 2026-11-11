@@ -10,7 +10,7 @@ export interface PaperMask {
   /** Required audit value; runtime checks it before hiding the original span. */
   expectedText: string;
 }
-export type PaperPassageType = 'reading' | 'cloze' | 'initial-fill' | 'word-bank' | 'sentence-gap' | 'matching' | 'information';
+export type PaperPassageType = 'reading' | 'cloze' | 'initial-fill' | 'word-bank' | 'sentence-gap' | 'matching' | 'information' | 'tfng' | 'heading' | 'summary' | 'prose-summary';
 export interface PaperPassageDefinition {
   id: string; title: string; type: PaperPassageType; instructions: string;
   materialId: string; textSha256: string; chsTextSha256: string;
@@ -27,6 +27,8 @@ export interface PaperPassageDefinition {
   optionPool?: Array<{ id: string; text: string }>;
   /** Natural sections A-J. paragraphs uses original EN row numbers, not display indices. */
   paragraphLabels?: Array<{ label: string; paragraphs: number[] }>;
+  /** Summary-completion text with [1]..[n] blank markers; not part of the official source. */
+  summaryText?: string;
 }
 export interface ReadingPaperDefinition {
   id: string; title: string; level: ReadingLevel; background: string;

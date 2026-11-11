@@ -2,9 +2,9 @@
 
 ## 现在如何维护
 
-本机现有阅读内容的唯一作者源是 `reading-library/base/` 中的 JSON 与素材；运行时读取同一格式的 `.gwreading` 文件。原 TypeScript 内容模块及手写注册表已迁移、移除。展示、判分、收藏、奖励和 PDF 仍由程序实现。增加现有题型的篇目只发布阅读包，无需构建 Electron 或更新 EXE。
+本机现有阅读内容的唯一作者源是 `reading-library/base/` 中的 JSON 与素材；运行时读取同一格式的 `.gwreading` 文件。原 TypeScript 内容模块及手写注册表已迁移、移除。展示、判分、收藏、奖励和 PDF 仍由程序实现。增加现有题型的篇目只发布阅读包，无需构建 Electron 或更新 EXE；使用 `engineVersion: 2` 的判断题、标题匹配、摘要填空或概要多选题型，需要 1.3.0 或更新版本的程序。
 
-本次基础包 `genshinwords.base@1.0.0` 包含 **69 篇、381 道逻辑题、66 份来源和46张图片**；原有五个历史目录仅用于旧链接兼容，不进入阅读目录。第二、三批已制作内容全部纳入，没有按旧文档数量截断。每篇独立作答、提交、判分和导出，不设置整卷。
+本次基础包 `genshinwords.base@1.1.0` 包含 **94 篇、523 道逻辑题、91 份来源和67张图片**，引擎版本为 2；原有五个历史目录仅用于旧链接兼容，不进入阅读目录。第二、三、四批已制作内容全部纳入，没有按旧文档数量截断。每篇独立作答、提交、判分和导出，不设置整卷。
 
 现有阅读作者资料与示例从README所列独立下载地址取得，不上传到GitHub仓库或Release。以下路径指下载后恢复到本地的作者目录。
 
@@ -116,7 +116,7 @@ my-reading/
 - `questions/glossary/analysis`：题目、题面难词和讲解；专名解释放 `analysisGlossary`。
 - 必要时提供 `masks/optionPool/paragraphLabels`。
 
-级别为 `entry/sh_zhongkao/sh_gaokao/cet4/cet6`。篇目题型为 `reading/cloze/initial-fill/word-bank/sentence-gap/matching/information`；底层题目使用 `choice` 或 `fill`。新内容复用这些能力无需升级程序；新增判分类型或引擎版本需要新 EXE。
+级别为 `entry/sh_zhongkao/gaokao/sh_gaokao/cet4/cet6/ielts/toefl`。篇目题型为 `reading/cloze/initial-fill/word-bank/sentence-gap/matching/information/tfng/heading/summary/prose-summary`；底层题目使用 `choice`、`fill` 或 `multi`。`engineVersion: 2` 新增 `tfng`、`heading`、`summary`、`prose-summary` 和 `multi` 多选判分；旧 `engineVersion: 1` 包仍可读取。新题型需要 1.3.0 或更新版本的新 EXE。
 
 每题含稳定 `id`、`type`、题干、题型显示名、能力描述、提示、`expected` 和 `solution`。选择题给出选项或引用共享池；填答题可给 `accepted`、首字母和长度约束。solution含对应题号、标准答案、答案编号、解析、证据段号及逐项选项说明。标准答案必须与判分答案一致，不能只改其中一份。
 

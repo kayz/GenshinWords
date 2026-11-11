@@ -644,3 +644,35 @@ test('new reading batch: 19 independent readings retain 100 stable questions and
     const result=f.submit(unit,answers);assert.equal(result.score,unit.questionCount);assert.equal(result.earnedCount,0);
   }
 });
+
+test('reading paper: new levels are selectable and multi-select summaries require the exact set', t => {
+  const f = readingFixture(t);
+  for (const level of ['gaokao', 'ielts', 'toefl']) assert.ok(f.reading.listReadingUnits(level).length > 0, level);
+  const definition = f.bank.find(unit => unit.practiceType === 'prose-summary');
+  assert.ok(definition, 'prose-summary unit');
+  const unit = f.reading.getReadingUnit(definition.id, true);
+  const multi = definition.questions.find(question => question.type === 'multi');
+  assert.ok(multi && multi.selectCount === 2);
+  const correct = multi.expected.split(',');
+  const replacement = multi.options.find(option => !correct.includes(option.id)).id;
+  const wrong = [...correct.slice(1), replacement].sort().join(',');
+  const answerMap = { ...f.answers(definition), [multi.id]: wrong };
+  const result = f.submit(unit, answerMap);
+  assert.equal(result.questionResults[multi.id].correct, false);
+  assert.equal(result.correct, unit.questionCount - 1);
+  assert.equal(result.score, unit.questionCount - 1);
+});
+
+test('reading PDF: native IELTS and TOEFL types export without leaking answers', async t => {
+  const f = readingFixture(t), pdf = f.context.load('reading-pdf');
+  const fontPath = path.join(root, 'out/renderer/assets', fs.readdirSync(path.join(root, 'out/renderer/assets')).find(name => /^NotoSerifSC.*\.otf$/.test(name)));
+  for (const id of ['ielts-2026-nicole-purpose-v1', 'ielts-2026-vodyanitsa-headings-v1', 'ielts-2026-kaveh-summary-v1', 'toefl-2026-lynette-vision-v1']) {
+    const unit = f.reading.getReadingUnit(id, true);
+    const document = f.reading.getReadingDocument(id, unit.attemptId);
+    const file = path.join(f.directory, id + '.pdf');
+    await pdf.writeReadingPdf(file, document, { fontPath });
+    const bytes = fs.readFileSync(file);
+    assert.equal(bytes.toString('latin1', 0, 5), '%PDF-');
+    assert.ok(bytes.length > 1000);
+  }
+});

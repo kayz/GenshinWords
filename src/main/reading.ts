@@ -321,7 +321,9 @@ function validateAnswers(unit: ReadingDefinition, answers: Record<string, string
       continue;
     }
     if (typeof raw !== 'string' || raw.length > 512) throw new Error('答案格式无效。');
-    const value = question.type === 'choice' ? raw.trim().toUpperCase() : normalizeAnswer(raw);
+    let value = question.type === 'choice' ? raw.trim().toUpperCase()
+      : question.type === 'multi' ? [...new Set(raw.split(/[,\s]+/).map(entry => entry.trim().toUpperCase()).filter(Boolean))].sort().join(',')
+        : normalizeAnswer(raw);
     if (!value) {
       if (complete) throw new Error('请完成本篇全部题目后再交卷。');
       canonical[question.id] = '';
@@ -329,7 +331,13 @@ function validateAnswers(unit: ReadingDefinition, answers: Record<string, string
     }
     if (question.type === 'choice' && !question.options?.some(option => option.id === value))
       throw new Error('请选择题目提供的选项。');
-    canonical[question.id] = complete ? value : raw;
+    if (question.type === 'multi') {
+      const selected = value ? value.split(',') : [];
+      if (complete && selected.length !== question.selectCount) throw new Error('请按题目要求选择 ' + question.selectCount + ' 项。');
+      if (selected.some(id => !question.options?.some(option => option.id === id)))
+        throw new Error('请选择题目提供的选项。');
+    }
+    canonical[question.id] = complete ? value : (question.type === 'multi' ? value : raw);
   }
   return canonical;
 }
@@ -371,7 +379,7 @@ export function submitReadingPaper(attemptId: string, answers: Record<string, st
     const assisted = Boolean(fresh.answers_viewed_at);
     const grades = unit.questions.map(question => ({
       question, correct: [question.expected, ...(question.accepted ?? [])].some(
-        expected => (question.type === 'choice' ? expected : normalizeAnswer(expected)) === canonical[question.id],
+        expected => (question.type === 'choice' || question.type === 'multi' ? expected : normalizeAnswer(expected)) === canonical[question.id],
       ),
     }));
     const earned: ReadingRewardEntry[] = [];

@@ -9,11 +9,14 @@ const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
 const normalize=value=>String(value??'').normalize('NFKC').replace(/[’‘]/g,"'").replace(/[‐‑–—]/g,'-').replace(/\s+/g,' ').trim().toLowerCase();
 const tokens=text=>[...text.matchAll(/[A-Za-z]+(?:['’‘-][A-Za-z]+)*/g)].map(match=>normalize(match[0]));
 const levels=[
-  {id:'entry',label:'初中基础',min:55,max:180,coverage:.88,average:18,longest:40,sentences:3,rank:0},
-  {id:'sh_zhongkao',label:'上海中考',min:100,max:400,coverage:.85,average:22,longest:50,sentences:4,rank:0},
-  {id:'sh_gaokao',label:'上海高考',min:180,max:700,coverage:.87,average:28,longest:65,sentences:5,rank:1},
-  {id:'cet4',label:'CET4',min:200,max:800,coverage:.88,average:30,longest:75,sentences:5,rank:2},
-  {id:'cet6',label:'CET6',min:300,max:800,coverage:.88,average:36,longest:100,sentences:6,rank:3},
+  {id:'entry',label:'初中基础',min:55,max:180,coverage:.88,average:18,longest:40,sentences:3,books:['zhongkao','sh_zhongkao']},
+  {id:'sh_zhongkao',label:'上海中考',min:100,max:400,coverage:.85,average:22,longest:50,sentences:4,books:['zhongkao','sh_zhongkao']},
+  {id:'sh_gaokao',label:'上海高考',min:180,max:700,coverage:.87,average:28,longest:65,sentences:5,books:['zhongkao','sh_zhongkao','sh_gaokao']},
+  {id:'gaokao',label:'全国高考',min:180,max:700,coverage:.87,average:28,longest:65,sentences:5,books:['zhongkao','sh_zhongkao','gaokao']},
+  {id:'cet4',label:'CET4',min:200,max:800,coverage:.88,average:30,longest:75,sentences:5,books:['zhongkao','sh_zhongkao','sh_gaokao','cet4']},
+  {id:'cet6',label:'CET6',min:300,max:800,coverage:.88,average:36,longest:100,sentences:6,books:['zhongkao','sh_zhongkao','sh_gaokao','cet4','cet6']},
+  {id:'ielts',label:'IELTS',min:300,max:900,coverage:.88,average:32,longest:90,sentences:6,books:['zhongkao','sh_zhongkao','sh_gaokao','cet4','cet6','ielts']},
+  {id:'toefl',label:'TOEFL',min:400,max:1000,coverage:.88,average:34,longest:100,sentences:6,books:['zhongkao','sh_zhongkao','sh_gaokao','cet4','cet6','toefl']},
 ];
 const round=n=>Math.round(n*10000)/10000;
 const countBy=(rows,key)=>Object.fromEntries([...new Set(rows.map(key))].sort().map(value=>[value,rows.filter(row=>key(row)===value).length]));
@@ -232,7 +235,9 @@ function markdown(report){
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 ${levelRows.map(l=>line(s.levels[l.id],l)).join('\n')}
 
-互斥主档按初中基础→上海中考→上海高考→CET4→CET6归档，优先上海中学生。总候选${s.static.primary}份，新增${s.static.newPrimary}份；其中${s.static.primaryWithRisk}份已有自动风险标记，其余也没有通过人工独立性审核。**不能把互斥CET4的${s.levels.cet4.primary}份与高考的${s.levels.sh_gaokao.primary}份解读为两类资料真实比例**：高考门槛命中者优先归高考，超过其700词上限者才可能进入CET4主档。跨档列保留覆盖重叠，禁止跨档加总。
+互斥主档按初中基础→上海中考→上海高考→全国高考→CET4→CET6→IELTS→TOEFL归档，优先上海中学生。总候选${s.static.primary}份，新增${s.static.newPrimary}份；其中${s.static.primaryWithRisk}份已有自动风险标记，其余也没有通过人工独立性审核。**不能把互斥CET4的${s.levels.cet4.primary}份与高考的${s.levels.sh_gaokao.primary}份解读为两类资料真实比例**：高考门槛命中者优先归高考，超过其700词上限者才可能进入CET4主档。跨档列保留覆盖重叠，禁止跨档加总。
+
+全国高考的互斥主档为 ${s.levels.gaokao.primary} 份，不是没有可用文本：全国高考词表被上海高考词表覆盖，凡是达到全国高考门槛的短篇也达到上海高考门槛，因此全部先归上海高考；全国高考应从上海高考的跨档支持池中选材或复用来源重新命题，当前跨档支持 ${s.levels.gaokao.crossSupport} 份。同理，IELTS／TOEFL 的互斥主档只统计超出六级篇幅上限的部分，实际可用量看跨档支持列。
 
 长来源共${s.static.long}份。长来源列只表示完整来源的词表／句长预筛命中，放宽了篇幅上限，**不表示可在该档整篇使用，也不表示已有可用选段或符合四六级长篇匹配**。每来源只计一次，选段潜力没有按滑动窗口倍乘。基础档的长来源同样必须重新挑选自洽段落。
 
@@ -302,7 +307,7 @@ ${report.priority[l.id].map(r=>`| \`${r.id}\` | ${r.title.replace(/\|/g,'／')} 
 
 先审核主档候选的情境与双语，再按具体题型选篇和命题。长来源先人工确定完整原句段落与1:N中译对应；不据长度直接切窗。任务先复原并固定相同路径，语音先确认说话者、指代和足够信息量。所有收藏与答案证据仍应绑定来源及段号。
 
-现成26篇的人工核对只覆盖各自选段，不代表其整本书、同角色所有故事或全部任务齐备。幻想叙事较多，真实社会应用文、说明文、学术论证的体裁分布有限；可用于训练，但不能宣称覆盖某考试全部阅读能力。没有学生用时／正确率数据，不能据此给出已验证的难度或每篇固定题数。
+现成${s.ready.exercises}篇的人工核对只覆盖各自选段，不代表其整本书、同角色所有故事或全部任务齐备。幻想叙事较多，真实社会应用文、说明文、学术论证的体裁分布有限；可用于训练，但不能宣称覆盖某考试全部阅读能力。没有学生用时／正确率数据，不能据此给出已验证的难度或每篇固定题数。
 `;
 }
 
@@ -322,15 +327,19 @@ async function main(){
       authoredHashes.add(sha(normalize(en.text)));return {id:p.exerciseId,level:p.level,materialId:p.materialId,title:p.title,questionCount:p.questions.length,enSha256:p.textSha256,chsSha256:p.chsTextSha256,coverPath:p.coverPath,imageExists:imageExists(p.coverPath),bilingualReview:'author-verified-selected-rows'};});
     const wordRows=words.prepare('SELECT id,lemma FROM words ORDER BY id').all(),formRows=words.prepare('SELECT form,word_id FROM word_forms ORDER BY form,word_id').all();
     const memberships=words.prepare('SELECT book_id,word_id FROM book_words ORDER BY book_id,word_id').all();
-    const rankById=new Map(),rawShanghai=new Set();
-    const bookRank={zhongkao:0,sh_zhongkao:0,sh_gaokao:1,cet4:2,cet6:3};
-    for(const m of memberships){if(m.book_id==='sh_zhongkao')rawShanghai.add(m.word_id);if(bookRank[m.book_id]!==undefined)rankById.set(m.word_id,Math.min(rankById.get(m.word_id)??99,bookRank[m.book_id]));}
-    const forms=new Map(),rawForms=new Set();
-    for(const row of [...wordRows.map(w=>({form:w.lemma,word_id:w.id})),...formRows]){const term=normalize(row.form);if(rankById.has(row.word_id))forms.set(term,Math.min(forms.get(term)??99,rankById.get(row.word_id)));if(rawShanghai.has(row.word_id))rawForms.add(term);}
+    const rawShanghai=new Set(),wordBooks=new Map();
+    for(const m of memberships){if(m.book_id==='sh_zhongkao')rawShanghai.add(m.word_id);if(!wordBooks.has(m.word_id))wordBooks.set(m.word_id,new Set());wordBooks.get(m.word_id).add(m.book_id);}
+    const bookForms=new Map(),rawForms=new Set();
+    for(const row of [...wordRows.map(w=>({form:w.lemma,word_id:w.id})),...formRows]){
+      const term=normalize(row.form),books=wordBooks.get(row.word_id);
+      if(books)for(const book of books){if(!bookForms.has(book))bookForms.set(book,new Set());bookForms.get(book).add(term);}
+      if(rawShanghai.has(row.word_id))rawForms.add(term);
+    }
+    const levelForms=Object.fromEntries(levels.map(level=>[level.id,new Set(level.books.flatMap(book=>[...(bookForms.get(book)??[])]))]));
     const variants=term=>[term,term.replace(/'s$/,''),term.replace(/'(?:m|re|ve|ll|d)$/,''),({"can't":'can',"won't":'will',"shan't":'shall'}[term]??term.replace(/n't$/,''))];
-    const tokenRank=term=>Math.min(...variants(term).map(form=>forms.get(form)??99));
+    const hasForm=(set,term)=>variants(term).some(form=>set.has(form));
     const segmenter=new Intl.Segmenter('en',{granularity:'sentence'});
-    function metrics(text){const ts=tokens(text),ranks=ts.map(tokenRank);const lengths=[...segmenter.segment(text)].map(s=>tokens(s.segment).length).filter(n=>n>=3);return {words:ts.length,sentences:lengths.length,averageSentence:round(lengths.reduce((n,x)=>n+x,0)/(lengths.length||1)),longestSentence:Math.max(0,...lengths),rawShanghaiCoverage:round(ts.filter(t=>variants(t).some(v=>rawForms.has(v))).length/(ts.length||1)),coverage:Object.fromEntries(levels.map(l=>[l.id,round(ranks.filter(rank=>rank<=l.rank).length/(ts.length||1))]))};}
+    function metrics(text){const ts=tokens(text);const lengths=[...segmenter.segment(text)].map(s=>tokens(s.segment).length).filter(n=>n>=3);return {words:ts.length,sentences:lengths.length,averageSentence:round(lengths.reduce((n,x)=>n+x,0)/(lengths.length||1)),longestSentence:Math.max(0,...lengths),rawShanghaiCoverage:round(ts.filter(t=>variants(t).some(v=>rawForms.has(v))).length/(ts.length||1)),coverage:Object.fromEntries(levels.map(level=>[level.id,round(ts.filter(t=>hasForm(levelForms[level.id],t)).length/(ts.length||1))]))};}
     const imageRows=library.prepare('SELECT * FROM artwork ORDER BY id').all(),imageById=new Map(imageRows.map(row=>[row.id,row]));
     const scopeImages=new Map();for(const scope of library.prepare('SELECT * FROM artwork_scopes ORDER BY artwork_id,scope_kind,scope_id').all()){const a=imageById.get(scope.artwork_id);if(a.width>=1024&&a.height>=480&&a.width/a.height>=1.6&&imageExists(a.file_path)){const key=scope.scope_kind+':'+scope.scope_id;if(!scopeImages.has(key))scopeImages.set(key,{path:a.file_path,association:scope.evidence});}}
     const authoredImages=new Map(definitions.filter(p=>imageExists(p.coverPath)).map(p=>[p.materialId,{path:p.coverPath,association:'existing-author-verified-exercise'}]));
@@ -360,7 +369,7 @@ async function main(){
       tasks:{raw:rows.filter(r=>taskKinds.has(r.kind)).length,distinctPreviews:new Set(rows.filter(r=>taskKinds.has(r.kind)&&normalize(r.en)).map(r=>sha(normalize(r.en)))).size,representedByTask:tasks.length,branchingGraphs:[...graphs.values()].filter(g=>g.branchingNodes>0).length},
       voices:{raw:rows.filter(r=>r.kind==='voice').length,distinct:new Set(rows.filter(r=>r.kind==='voice'&&normalize(r.en)).map(r=>sha(normalize(r.en)))).size,screened:voices.length},
       static:{raw:rows.filter(r=>['book','character_story'].includes(r.kind)).length,distinctNonempty:new Set(rows.filter(r=>['book','character_story'].includes(r.kind)&&normalize(r.en)).map(r=>sha(normalize(r.en)))).size,primary:primary.length,newPrimary:primary.filter(r=>!r.authored).length,primaryWithRisk:primary.filter(r=>r.risks.length).length,long:long.length},levels:Object.fromEntries(levels.map(l=>[l.id,{readyExercises:authored.filter(p=>p.level===l.id).length,readySources:new Set(authored.filter(p=>p.level===l.id).map(p=>p.materialId)).size,primary:primary.filter(r=>r.primary===l.id).length,newPrimary:primary.filter(r=>r.primary===l.id&&!r.authored).length,newPrimaryWithImage:primary.filter(r=>r.primary===l.id&&!r.authored&&r.image).length,newPrimaryWithoutImage:primary.filter(r=>r.primary===l.id&&!r.authored&&!r.image).length,primaryWithRisk:primary.filter(r=>r.primary===l.id&&r.risks.length).length,crossSupport:primary.filter(r=>r.support.includes(l.id)).length,longSources:long.filter(r=>r.support.includes(l.id)).length}]))};
-    const priority=Object.fromEntries(levels.map(l=>[l.id,primary.filter(r=>r.primary===l.id&&!r.authored).sort((a,b)=>Number(Boolean(b.image))-Number(Boolean(a.image))||a.risks.length-b.risks.length||b.metrics.coverage[l.id]-a.metrics.coverage[l.id]||a.id.localeCompare(b.id,'en')).slice(0,10)]));
+    const priority=Object.fromEntries(levels.map(l=>[l.id,primary.filter(r=>r.support.includes(l.id)&&!r.authored).sort((a,b)=>Number(Boolean(b.image))-Number(Boolean(a.image))||a.risks.length-b.risks.length||b.metrics.coverage[l.id]-a.metrics.coverage[l.id]||a.id.localeCompare(b.id,'en')).slice(0,10)]));
     const matchingMeta=Object.fromEntries(matches.prepare('SELECT key,value FROM meta ORDER BY key').all().map(r=>[r.key,JSON.parse(r.value)]));
     const wordInventorySha256=sha(JSON.stringify(wordRows)),wordFormsSha256=sha(JSON.stringify(formRows));
     const bindReview=review=>{const row=rows.find(r=>r.id===review.id),evidence=reviewedSourceHashes[review.id];return {...review,reviewedSourceSha256:evidence,sourceMatches:Boolean(row&&evidence&&sha(row.en||'')===evidence.en&&sha(row.chs||'')===evidence.chs)};};

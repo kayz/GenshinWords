@@ -8,7 +8,7 @@ import type { BankQuestion, ReadingDefinition } from './reading-bank-types';
 import type { IndependentReadingDefinition, PaperPassageDefinition, ReadingPaperDefinition } from './reading-paper-types';
 import { composeIndependentReading, composeReadingPaper, composeReadingPassage, paperSections } from './reading-paper-compose';
 import { annotateReadingParagraphs } from '../shared/reading-text';
-import type { ReadingGloss } from '../shared/reading';
+import { READING_LEVELS, type ReadingGloss } from '../shared/reading';
 import type { ReadingPackageData, ReadingPackageParagraphs, ReadingPackageSource, ValidatedReadingPackage } from '../shared/reading-package';
 export type { ReadingPackageData, ValidatedReadingPackage } from '../shared/reading-package';
 
@@ -109,7 +109,7 @@ function guardJson(value: unknown, depth = 0, budget = { nodes: 0, bytes: 0 }) {
   }
   fail('JSON', '只允许 JSON 数据');
 }
-function level(value: unknown, where: string) { if (!['entry', 'sh_zhongkao', 'sh_gaokao', 'cet4', 'cet6'].includes(String(value))) fail(where, '阅读级别无效'); }
+function level(value: unknown, where: string) { if (typeof value !== 'string' || !Object.hasOwn(READING_LEVELS, value)) fail(where, '阅读级别无效'); }
 function focus(value: unknown, where: string) {
   const data = obj(value, where, ['x', 'y']);
   for (const key of ['x', 'y']) if (typeof data[key] !== 'number' || !Number.isFinite(data[key]) || Number(data[key]) < 0 || Number(data[key]) > 1) fail(where, '图片焦点须在0至1之间');
@@ -143,36 +143,47 @@ function analysis(value: unknown, where: string, indices: number[], source: stri
     if (!source[n - 1].includes(text)) fail(where, `P${n} 精读引句不匹配原文`);
   });
 }
-function question(value: unknown, where: string, indices: number[], pool?: unknown): BankQuestion {
-  const data = obj(value, where, ['id', 'type', 'format', 'prompt', 'skill', 'hint', 'options', 'firstLetter', 'wordLimit', 'expected', 'accepted', 'solution', 'passageId', 'pooled'], ['id', 'type', 'format', 'prompt', 'skill', 'hint', 'expected', 'solution']);
+function question(value: unknown, where: string, indices: number[], pool?: unknown, engine = 1): BankQuestion {
+  const data = obj(value, where, ['id', 'type', 'format', 'prompt', 'skill', 'hint', 'options', 'firstLetter', 'wordLimit', 'expected', 'accepted', 'solution', 'passageId', 'pooled', 'selectCount'], ['id', 'type', 'format', 'prompt', 'skill', 'hint', 'expected', 'solution']);
   id(data.id, where); for (const key of ['format', 'prompt', 'skill', 'expected']) str(data[key], `${where}.${key}`);
   if (data.hint !== '') str(data.hint, `${where}.hint`);
-  if (!['choice', 'fill'].includes(String(data.type))) fail(where, '仅支持选择与填空判分');
+  const type = String(data.type);
+  if (!['choice', 'fill', 'multi'].includes(type)) fail(where, '仅支持选择、填空与多选判分');
+  if (engine < 2 && (type === 'multi' || data.selectCount !== undefined)) fail(where, '当前题型引擎不支持多选判分');
   if (data.passageId !== undefined) id(data.passageId, where);
   if (data.pooled !== undefined && typeof data.pooled !== 'boolean') fail(where, 'pooled 必须是布尔值');
   if (data.wordLimit !== undefined) int(data.wordLimit, where, 1, 30);
   if (data.firstLetter !== undefined && (typeof data.firstLetter !== 'string' || !/^[A-Za-z]$/.test(data.firstLetter))) fail(where, '首字母无效');
   if (data.accepted !== undefined) { const values = arr(data.accepted, where, 0, 30); values.forEach(answer => str(answer, where, 1000)); unique(values, where); }
   let choices: Obj[] = [];
-  if (data.type === 'choice') {
+  if (type === 'choice' || type === 'multi') {
     if (data.firstLetter !== undefined || data.accepted !== undefined || data.wordLimit !== undefined) fail(where, '选择题不能设置填空判分字段');
     choices = options(data.options ?? pool, where);
-    if (!choices.some(entry => entry.id === data.expected)) fail(where, '答案不在完整选项中');
+    const expectedIds = String(data.expected).split(',').map(entry => entry.trim()).filter(Boolean);
+    if (type === 'choice') {
+      if (expectedIds.length !== 1 || !choices.some(entry => entry.id === data.expected)) fail(where, '答案不在完整选项中');
+    } else {
+      const count = int(data.selectCount, where, 2, 3);
+      if (expectedIds.length !== count || new Set(expectedIds).size !== count) fail(where, '多选答案数量与 selectCount 不符');
+      if (expectedIds.join(',') !== String(data.expected)) fail(where, '多选答案须为排序后的逗号分隔编号');
+      if (expectedIds.some(entry => !choices.some(choice => choice.id === entry))) fail(where, '多选答案不在完整选项中');
+    }
   } else {
     if (data.options !== undefined) fail(where, '填空题不能设置选项');
+    if (data.selectCount !== undefined) fail(where, '填空题不能设置 selectCount');
     const answers = [data.expected, ...(data.accepted as unknown[] ?? [])];
     if (data.firstLetter && answers.some(answer => !String(answer).toLowerCase().startsWith(String(data.firstLetter).toLowerCase()))) fail(where, '首字母与答案或可接受变式不符');
     if (data.wordLimit && answers.some(answer => String(answer).trim().split(/\s+/u).length > Number(data.wordLimit))) fail(where, '可接受答案超出词数限制');
   }
   const solution = obj(data.solution, where, ['questionId', 'answer', 'answerId', 'explanation', 'evidence', 'optionExplanations'], ['questionId', 'answer', 'explanation', 'evidence']);
   if (solution.questionId !== data.id) fail(where, '解析题号不匹配'); str(solution.answer, where); str(solution.explanation, where); numbers(solution.evidence, where, indices);
-  if (solution.answerId !== undefined && (data.type !== 'choice' || solution.answerId !== data.expected)) fail(where, '解析答案与判分不符');
-  if (data.type === 'choice') {
+  if (solution.answerId !== undefined && ((type !== 'choice' && type !== 'multi') || solution.answerId !== data.expected)) fail(where, '解析答案与判分不符');
+  if (type === 'choice') {
     const displayed = String(solution.answer), prefix = displayed.match(/^([A-Z])[.、:：)]\s*/);
     if (prefix && prefix[1] !== data.expected || displayed.replace(/^[A-Z][.、:：)]\s*/, '') !== choices.find(entry => entry.id === data.expected)!.text) fail(where, '解析显示答案与正确选项不一致');
   }
   if (solution.optionExplanations !== undefined) {
-    if (data.type !== 'choice') fail(where, '填空题不能设置选项解析');
+    if (type !== 'choice' && type !== 'multi') fail(where, '填空题不能设置选项解析');
     const explanations = arr(solution.optionExplanations, where, choices.length, choices.length).map(entry => { const part = obj(entry, where, ['id', 'text']); str(part.text, where); return part.id; });
     unique(explanations, where); if (choices.some(entry => !explanations.includes(entry.id))) fail(where, '选项解析未覆盖全部选项');
   }
@@ -185,11 +196,12 @@ function sourceFor(value: Obj, sources: Map<string, ReadingPackageSource>, where
   str(value.sourceTitle, where); url(value.sourceUrl, where);
   return source;
 }
-function passage(value: unknown, sources: Map<string, ReadingPackageSource>, imagePaths: Set<string>, where: string): IndependentReadingDefinition {
-  const data = obj(value, where, ['id', 'title', 'type', 'instructions', 'materialId', 'textSha256', 'chsTextSha256', 'bilingualAlignmentVerified', 'paragraphMap', 'coverPath', 'coverFocus', 'sourceTitle', 'sourceUrl', 'questions', 'glossary', 'analysisGlossary', 'analysis', 'masks', 'optionPool', 'paragraphLabels', 'level', 'estimatedMinutes'], ['id', 'title', 'type', 'instructions', 'materialId', 'textSha256', 'chsTextSha256', 'bilingualAlignmentVerified', 'paragraphMap', 'coverPath', 'coverFocus', 'sourceTitle', 'sourceUrl', 'questions', 'glossary', 'analysis', 'level']);
+function passage(value: unknown, sources: Map<string, ReadingPackageSource>, imagePaths: Set<string>, where: string, engine = 1): IndependentReadingDefinition {
+  const data = obj(value, where, ['id', 'title', 'type', 'instructions', 'materialId', 'textSha256', 'chsTextSha256', 'bilingualAlignmentVerified', 'paragraphMap', 'coverPath', 'coverFocus', 'sourceTitle', 'sourceUrl', 'questions', 'glossary', 'analysisGlossary', 'analysis', 'masks', 'optionPool', 'paragraphLabels', 'summaryText', 'level', 'estimatedMinutes'], ['id', 'title', 'type', 'instructions', 'materialId', 'textSha256', 'chsTextSha256', 'bilingualAlignmentVerified', 'paragraphMap', 'coverPath', 'coverFocus', 'sourceTitle', 'sourceUrl', 'questions', 'glossary', 'analysis', 'level']);
   id(data.id, where); str(data.title, where, 300); str(data.instructions, where); level(data.level, where);
   if (data.estimatedMinutes !== undefined) int(data.estimatedMinutes, where, 0, 600);
-  if (!['reading', 'cloze', 'initial-fill', 'word-bank', 'sentence-gap', 'matching', 'information'].includes(String(data.type))) fail(where, '题型不受当前引擎支持');
+  if (!['reading', 'cloze', 'initial-fill', 'word-bank', 'sentence-gap', 'matching', 'information', 'tfng', 'heading', 'summary', 'prose-summary'].includes(String(data.type))) fail(where, '题型不受当前引擎支持');
+  if (engine < 2 && (['tfng', 'heading', 'summary', 'prose-summary'].includes(String(data.type)) || data.summaryText !== undefined)) fail(where, '当前题型引擎不支持该题型或摘要文本');
   const source = sourceFor(data, sources, where);
   if (!imagePaths.has(validateReadingPackagePath(data.coverPath))) fail(where, '未打包题图'); focus(data.coverFocus, where);
   const maps = arr(data.paragraphMap, where, 1, 2000).map(entry => {
@@ -202,7 +214,27 @@ function passage(value: unknown, sources: Map<string, ReadingPackageSource>, ima
   if (maps.some((pair, i) => i > 0 && pair.chs[0] <= maps[i - 1].chs[maps[i - 1].chs.length - 1])) fail(where, '中文配对须按原文顺序且不能重复');
   const indices = maps.map(pair => pair.en);
   if (data.optionPool !== undefined) options(data.optionPool, where);
-  const questions = arr(data.questions, where, 1, 100).map((entry, i) => question(entry, `${where}.questions[${i}]`, indices, data.optionPool)); unique(questions.map(q => q.id), where);
+  const questions = arr(data.questions, where, 1, 100).map((entry, i) => question(entry, `${where}.questions[${i}]`, indices, data.optionPool, engine)); unique(questions.map(q => q.id), where);
+  if (data.summaryText !== undefined) str(data.summaryText, where);
+  if (data.type === 'tfng') {
+    if (questions.some(question => question.type !== 'choice' || !question.options || question.options.map(option => option.id).join(',') !== 'T,F,NG'
+      || question.options.map(option => option.text).join('|') !== 'True|False|Not Given' || !['T', 'F', 'NG'].includes(question.expected))) fail(where, '判断题须使用 T/True、F/False、NG/Not Given');
+  }
+  if (data.type === 'heading') {
+    if (!data.optionPool) fail(where, '标题匹配缺少标题池');
+    if (questions.some(question => question.type !== 'choice')) fail(where, '标题匹配只能使用选择题');
+  }
+  if (data.type === 'summary') {
+    if (!data.summaryText) fail(where, '摘要填空缺少摘要文本');
+    const markers = [...String(data.summaryText).matchAll(/\[(\d+)\]/g)].map(match => Number(match[1]));
+    if (markers.length !== questions.length || markers.some((number, index) => number !== index + 1)) fail(where, '摘要空位须按 [1]…[n] 顺序出现且与题数一致');
+    if (questions.some(question => question.type !== 'fill' || !question.wordLimit)) fail(where, '摘要填空每题须为带词数限制的填空题');
+  }
+  if (data.type === 'prose-summary') {
+    const multi = questions.filter(question => question.type === 'multi');
+    if (!multi.length) fail(where, '概要选择缺少多选判分题');
+    if (multi.some(question => !question.options || question.options.length < 5 || question.options.length > 6)) fail(where, '概要选择每题须有5至6个选项');
+  }
   if (data.paragraphLabels !== undefined) {
     const labels = arr(data.paragraphLabels, where, 1, 26).map(entry => { const label = obj(entry, where, ['label', 'paragraphs']); id(label.label, where); return { label: label.label, paragraphs: numbers(label.paragraphs, where, indices) }; });
     unique(labels.map(label => label.label), where); unique(labels.flatMap(label => label.paragraphs), where);
@@ -223,6 +255,7 @@ function passage(value: unknown, sources: Map<string, ReadingPackageSource>, ima
   });
   for (const mask of masks) if (masks.some(other => other !== mask && other.paragraph === mask.paragraph && other.start < mask.end && mask.start < other.end)) fail(where, '正文空位重叠');
   if (['cloze', 'initial-fill', 'word-bank', 'sentence-gap'].includes(String(data.type)) && questions.some(q => masks.filter(mask => mask.questionId === q.id).length !== 1)) fail(where, '每道挖空题须恰有一个正文空位');
+  if (!['cloze', 'initial-fill', 'word-bank', 'sentence-gap'].includes(String(data.type)) && masks.length) fail(where, '该题型不能设置正文挖空');
   return value as IndependentReadingDefinition;
 }
 function classic(value: unknown, sources: Map<string, ReadingPackageSource>, imagePaths: Set<string>, where: string): ReadingDefinition {
@@ -390,7 +423,8 @@ export function validateReadingPackage(input: unknown, options: { appVersion?: s
   if (!/^[a-z0-9][a-z0-9.-]{0,99}$/.test(id(manifest.id, 'manifest.id'))) fail('manifest.id', '题库ID须为小写字母、数字、点及连字符');
   str(manifest.name, 'manifest.name', 200); version(manifest.version, 'manifest.version'); version(manifest.minAppVersion, 'manifest.minAppVersion');
   if (manifest.maxAppVersion !== undefined) { version(manifest.maxAppVersion, 'manifest.maxAppVersion'); if (compareReadingPackageVersions(String(manifest.maxAppVersion), String(manifest.minAppVersion)) < 0) fail('manifest', '最大应用版本小于最低版本'); }
-  if (manifest.engineVersion !== 1) fail('manifest.engineVersion', '不支持该题型引擎版本');
+  if (manifest.engineVersion !== 1 && manifest.engineVersion !== 2) fail('manifest.engineVersion', '不支持该题型引擎版本');
+  const engine = manifest.engineVersion === 2 ? 2 : 1;
   const created = str(manifest.createdAt, 'manifest.createdAt', 40); if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)?$/.test(created) || !Number.isFinite(Date.parse(created)) || new Date(created).toISOString().slice(0, 10) !== created.slice(0, 10)) fail('manifest.createdAt', '须为有效 ISO 日期或 UTC 时间');
   if (manifest.description !== undefined) str(manifest.description, 'manifest.description', 4000);
   if (options.appVersion !== undefined) {
@@ -436,7 +470,7 @@ export function validateReadingPackage(input: unknown, options: { appVersion?: s
     const where = `units[${index}]`, record = obj(entry, where, ['kind', 'definition', 'composition', 'legacyGroupId'], ['kind', 'definition']);
     let unitId: string;
     if (record.kind === 'passage') {
-      const p = passage(record.definition, sourceMap, exactImages, where); unitId = p.id;
+      const p = passage(record.definition, sourceMap, exactImages, where, engine); unitId = p.id;
       if (record.composition !== undefined && !['independent', 'split'].includes(String(record.composition))) fail(where, '组合方式无效');
       if (record.composition === 'split') id(record.legacyGroupId, where); else if (record.legacyGroupId !== undefined) fail(where, '独立篇目不能指定历史容器');
       definitions.set(unitId, p);

@@ -16,7 +16,7 @@ function dataFor(f,{packageId='test.reading.one',unitId='test-reading-one',versi
     const base=f.format.decodeReadingPackage(fs.readFileSync(path.join(root,'content/reading/base.gwreading'))).data;
     const entry=base.units.find(entry=>entry.definition.id===template);assert.ok(entry,'Missing template');
     const definition=entry.definition;
-    templates.set(template,{format:base.format,formatVersion:base.formatVersion,manifest:{...base.manifest,id:packageId,name:'离线阅读测试包',version},
+    templates.set(template,{format:base.format,formatVersion:base.formatVersion,manifest:{...base.manifest,id:packageId,name:'离线阅读测试包',version,minAppVersion:'1.0.0'},
       units:[{...entry,composition:'independent'}],legacyGroups:[],sources:base.sources.filter(source=>source.id===definition.materialId),images:base.images.filter(image=>image.path===definition.coverPath)});
   }
   const data=structuredClone(templates.get(template));data.manifest.id=packageId;data.manifest.version=version;

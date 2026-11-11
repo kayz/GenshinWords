@@ -47,6 +47,7 @@ export function paperSections(paper: ReadingPaperDefinition, visibleParagraphs?:
       paragraphIndices: p.paragraphMap.map(pair => global(pair.en)), questionIds: p.questions.map(q => q.id),
       optionPool: p.optionPool,
       paragraphLabels: p.paragraphLabels?.map(label => ({label: label.label, paragraphs: label.paragraphs.map(global)})),
+      summaryText: p.summaryText,
     };
     if(visibleParagraphs&&(paper.level==='entry'||paper.level==='sh_zhongkao')){
       const targets=[...(p.masks??[]).map(mask=>mask.expectedText),
@@ -87,7 +88,11 @@ export function composeReadingPaper(paper: ReadingPaperDefinition): ReadingDefin
   for(const q of questions){
     if(!q.id||q.solution.questionId!==q.id||!q.expected||q.type==='choice'&&(!q.options?.some(option=>option.id===q.expected)||new Set(q.options.map(option=>option.id)).size!==q.options.length))
       throw new Error('套卷题目或标准答案配置无效：'+q.id);
-    if(q.type==='choice'&&q.solution.answerId&&q.solution.answerId!==q.expected)throw new Error('答案解析与判分选项不一致：'+q.id);
+    if(q.type==='multi'){
+      const ids=String(q.expected).split(',').map(entry=>entry.trim()).filter(Boolean);
+      if(!q.options||ids.length!==q.selectCount||new Set(ids).size!==ids.length||ids.some(entry=>!q.options!.some(option=>option.id===entry)))throw new Error('套卷多选判分配置无效：'+q.id);
+    }
+    if((q.type==='choice'||q.type==='multi')&&q.solution.answerId&&q.solution.answerId!==q.expected)throw new Error('答案解析与判分选项不一致：'+q.id);
   }
   const structure = [], sentences = [];
   paper.passages.forEach((p,index)=>{

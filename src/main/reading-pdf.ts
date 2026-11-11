@@ -120,9 +120,9 @@ function printQuestion(doc, question: ReadingQuestion, index: number): void {
   ensureSpace(doc, Math.min(estimated, pageBody));
   text(doc, questionLabel(question, index), 10.5, GOLD);
   text(doc, question.prompt);
-  if (question.type === 'choice') {
+  if (question.type === 'choice' || question.type === 'multi') {
     for (const choice of questionChoices(question)) text(doc, choice, 10.3, BODY, 10);
-    text(doc, '答案：________', 9, MUTED);
+    text(doc, question.type === 'multi' ? `答案：选择 ${question.selectCount ?? 2} 项` : '答案：________', 9, MUTED);
   } else {
     const constraint = question.wordLimit ? `（最多 ${question.wordLimit} 个英文单词）` : '';
     text(doc, `答案：${question.firstLetter ? `${question.firstLetter}_______` : '________________'}${constraint}`, 9.5, MUTED);
@@ -235,6 +235,12 @@ export async function writeReadingPdf(
           const paragraph=annotated[localIndex].map(part=>part.text+(part.note?`（${part.note}）`:'')).join('');
           text(doc,(label?`[${label}] `:'')+paragraph);doc.moveDown(.4);
         }
+        if(section.summaryText){
+          ensureSpace(doc,48);
+          text(doc,'摘要',10.5,GOLD);
+          text(doc,section.summaryText,10.3,BODY);
+          doc.moveDown(.4);
+        }
         for(const id of section.questionIds){const index=unit.questions.findIndex(q=>q.id===id);printQuestion(doc,unit.questions[index],index);}
       }
     }else{
@@ -266,13 +272,19 @@ export async function writeReadingPdf(
       if (!explanation) return;
       const result = paperResult?.questionResults[question.id];
       const questionTitle = questionLabel(question, index) + (result ? ` · ${result.correct ? '√' : '×'}` : '');
+      const optionText = (id: string) => {
+        const option = question.options?.find((entry) => entry.id === id);
+        return option ? optionLabel(option) : id;
+      };
       const answerOption = explanation.answerId
         ? question.options?.find((option) => option.id === explanation.answerId) : undefined;
-      const answerText = `参考答案：${answerOption ? optionLabel(answerOption) : explanation.answer}`;
+      const answerText = question.type === 'multi'
+        ? `参考答案：${String(explanation.answerId ?? explanation.answer).split(',').map(entry => optionText(entry.trim())).join('；')}`
+        : `参考答案：${answerOption ? optionLabel(answerOption) : explanation.answer}`;
       const submitted = paperResult?.answers[question.id];
       const submittedOption = question.options?.find((option) => option.id === submitted);
       const submittedText = submitted === undefined ? ''
-        : `你的答案：${submittedOption ? optionLabel(submittedOption) : submitted || '（未填写）'}`;
+        : `你的答案：${question.type === 'multi' ? (submitted ? submitted.split(',').map(entry => optionText(entry.trim())).join('；') : '（未填写）') : submittedOption ? optionLabel(submittedOption) : submitted || '（未填写）'}`;
       const evidenceText = `原文依据：${explanation.evidence.map((number) => `P${number}`).join('、')}`;
       const blockHeight = paragraphHeight(doc, questionTitle, 11)
         + (submittedText ? paragraphHeight(doc, submittedText, 9.5) : 0)

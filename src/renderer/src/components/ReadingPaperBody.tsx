@@ -5,6 +5,7 @@ import { annotateReadingParagraphs } from '../../../shared/reading-text';
 const practiceLabels: Record<string, string> = {
   reading: '阅读理解', cloze: '完形填空', 'initial-fill': '首字母填空',
   'word-bank': '选词填空', 'sentence-gap': '选句填空', matching: '信息匹配', information: '信息提取',
+  tfng: '判断题', heading: '标题匹配', summary: '摘要填空', 'prose-summary': '概要选择',
 };
 export function readingPracticeLabel(type?: string): string {
   return practiceLabels[type || 'reading'] || '阅读理解';
@@ -45,6 +46,14 @@ export default function ReadingPaperBody({
         : part;
     });
   }
+  function summaryText(text: string) {
+    return text.split(/(\[\d+\])/g).map((part, index) => {
+      const match = /^\[(\d+)\]$/.exec(part), number = match ? Number(match[1]) : 0;
+      return number > 0 && number <= unit.questions.length
+        ? <button key={index} type="button" className="rd-blank-link" aria-label={'填写第 ' + number + ' 题'} onClick={() => jumpQuestion(number)}>{part}</button>
+        : part;
+    });
+  }
 
   return <>
     <article id="reading-passage" className="rd-paper" aria-labelledby="reading-unit-title">
@@ -72,6 +81,7 @@ export default function ReadingPaperBody({
             {part.note ? <span lang="zh-CN" className="rd-inline-note">（{part.note}）</span> : null}</span>)}</p>
         </div>;
       })}</div>
+      {passage?.summaryText ? <div className="rd-summary" lang="en">{summaryText(passage.summaryText)}</div> : null}
       <footer className="rd-paper-source">{passage?.sourceTitle || unit.sourceTitle}<br /><span>{passage?.sourceUrl || unit.sourceUrl}</span></footer>
     </article>
     <form id="reading-questions" className="rd-questions rd-exercise" aria-labelledby="reading-questions-title" onSubmit={onSubmit}>
@@ -80,8 +90,10 @@ export default function ReadingPaperBody({
         const matching = practiceType === 'matching' || !!question.pooled ||
           question.type === 'choice' && !!question.options?.length && question.options.every(option => /^P[1-9]\d*$/.test(option.id));
         const optionLabel = practiceType === 'matching' ? '请选择对应段落'
-          : practiceType === 'word-bank' ? '请选择对应单词'
-            : practiceType === 'sentence-gap' ? '请选择对应句子' : '请选择对应选项';
+          : practiceType === 'heading' ? '请选择对应标题'
+            : practiceType === 'word-bank' ? '请选择对应单词'
+              : practiceType === 'sentence-gap' ? '请选择对应句子' : '请选择对应选项';
+        const multiSelected = (answers[question.id] || '').split(',').filter(Boolean);
         return <section key={question.id} id={'reading-q-' + question.id} className="gw-panel rd-question">
           <div className="gw-eyebrow">第 {index + 1} 题</div>
           <fieldset disabled={locked || busy}>
@@ -93,7 +105,19 @@ export default function ReadingPaperBody({
                   {practiceType === 'sentence-gap' || option.id === option.text ? option.id : option.id + '. ' + option.text}
                 </option>)}
               </select>
-            </div> : question.type === 'choice' ? <div className="rd-options">{question.options?.map(option =>
+            </div> : question.type === 'multi' ? <div className="rd-options">
+              <p className="gw-label">请选择 {question.selectCount || 2} 项</p>
+              {question.options?.map(option => {
+                const checked = multiSelected.includes(option.id);
+                return <label key={option.id} className={'rd-option ' + (checked ? 'rd-option-selected' : '')}>
+                  <input type="checkbox" value={option.id} checked={checked} disabled={!checked && multiSelected.length >= (question.selectCount || 2)}
+                    onChange={() => {
+                      const next = checked ? multiSelected.filter(entry => entry !== option.id) : [...multiSelected, option.id];
+                      onAnswer(question.id, next.sort().join(','));
+                    }} />
+                  <span className="rd-option-letter">{option.id}.</span><span lang="en">{option.text}</span>
+                </label>;
+              })}</div> : question.type === 'choice' ? <div className="rd-options">{question.options?.map(option =>
               <label key={option.id} className={'rd-option ' + (answers[question.id] === option.id ? 'rd-option-selected' : '')}>
                 <input type="radio" name={question.id} value={option.id} checked={answers[question.id] === option.id} onChange={() => onAnswer(question.id, option.id)} />
                 <span className="rd-option-letter">{option.id}.</span><span lang="en">{option.text}</span>

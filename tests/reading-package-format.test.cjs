@@ -152,3 +152,18 @@ test('reading author CLI rejects an assets junction into another authoring subfo
   fs.writeFileSync(path.join(author, 'images.json'), JSON.stringify(imageRecords), 'utf8');
   assert.throws(() => readAuthoringDirectory(author), /escapes assets/);
 });
+
+test('reading format: engine 2 native IELTS/TOEFL types stay closed under engine 1', () => {
+  const base = core.decodeReadingPackage(fs.readFileSync(path.join(root, 'content/reading/base.gwreading'))).data;
+  const types = new Map(base.units.map(entry => [entry.definition.id, entry.definition.type]));
+  for (const type of ['tfng', 'heading', 'summary', 'prose-summary']) assert.ok([...types.values()].includes(type), type);
+  const legacy = structuredClone(base); legacy.manifest.engineVersion = 1;
+  assert.throws(() => core.validateReadingPackage(legacy), /题型引擎/);
+  const broken = structuredClone(base);
+  const tfng = broken.units.find(entry => entry.definition.type === 'tfng');
+  tfng.definition.questions[0].options[1].text = 'False!';
+  assert.throws(() => core.validateReadingPackage(broken), /判断题/);
+  const summary = structuredClone(base).units.find(entry => entry.definition.type === 'summary');
+  summary.definition.summaryText = 'No numbered blanks here.';
+  assert.throws(() => core.validateReadingPackage({ ...structuredClone(base), units: [summary] }), /摘要空位/);
+});

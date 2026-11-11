@@ -52,6 +52,7 @@
 .rd-paper-heading h2 { margin: .5rem 0 .3rem; font-size: clamp(1.55rem, 3vw, 2rem); }
 .rd-paper-eyebrow { color: #6b4b1f; font-size: .85rem; letter-spacing: .06em; }
 .rd-prose { padding: .5rem clamp(1rem, 3.7vw, 2.8rem) 1.5rem; }
+.rd-summary { margin: 0 clamp(1rem, 3.7vw, 2.8rem) 1rem; padding: 1rem 1.2rem; border: 1px solid #c8c1b0; background: #f5efdf; line-height: 1.8; white-space: pre-wrap; }
 .rd-paragraph { display: grid; grid-template-columns: 2.7rem minmax(0, 1fr); gap: .2rem; padding-block: .65rem; }
 .rd-paragraph-number { color: #536276; font-family: var(--font-body); font-size: .75rem; padding-top: .45rem; line-height: 1.8; }
 .rd-paragraph p { margin: 0; min-width: 0; white-space: pre-wrap; font-family: Georgia, Cambria, 'Times New Roman', serif; font-size: 1.16rem; line-height: 1.95; overflow-wrap: anywhere; }

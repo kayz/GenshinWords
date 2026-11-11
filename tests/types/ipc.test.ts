@@ -79,11 +79,14 @@ const badResult: IpcResult<'word:lookup'> = 1;
 // 阅读与全局奖励同样保留精确参数和返回结构。
 window.api.getRewards().then(summary => summary.wordTotal.toFixed());
 window.api.listReadingUnits('sh_zhongkao');
+window.api.listReadingUnits('gaokao');
+window.api.listReadingUnits('ielts');
+window.api.listReadingUnits('toefl');
 window.api.buildExercise('book', 1, 'meaning');
 // @ts-expect-error 新奖励接口不再按词书计算总数。
 window.api.getRewards('book');
 // @ts-expect-error 训练级别必须来自枚举。
-window.api.listReadingUnits('ielts');
+window.api.listReadingUnits('unknown');
 // @ts-expect-error 阅读提交必须携带请求编号。
 window.api.submitReadingPaper('attempt', { question: 'A' });
 // @ts-expect-error 自测方式必须是已支持的模式。

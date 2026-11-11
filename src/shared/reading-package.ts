@@ -6,7 +6,7 @@ export const READING_PACKAGE_FORMAT = 'genshinwords.reading' as const;
 export const READING_PACKAGE_FORMAT_VERSION = 1 as const;
 export interface ReadingPackageManifest {
   id: string; name: string; version: string; minAppVersion: string; maxAppVersion?: string;
-  engineVersion: 1; createdAt: string; description?: string;
+  engineVersion: 1 | 2; createdAt: string; description?: string;
 }
 export interface ReadingPackageSourceText { text: string; sha256: string; paragraphs: string[] }
 export interface ReadingPackageSource {

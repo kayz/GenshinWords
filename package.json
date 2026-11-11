@@ -1,6 +1,6 @@
 {
   "name": "genshin-words",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Local Genshin Impact dialogue vocabulary trainer (non-commercial)",
   "main": "./out/main/index.js",
   "author": "GenshinWords",

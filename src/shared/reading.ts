@@ -1,14 +1,15 @@
 import type { ReadingRewardEntry } from './rewards';
 export const READING_LEVELS = {
-  entry: '初中基础', sh_zhongkao: '上海中考', sh_gaokao: '上海高考', cet4: '四级', cet6: '六级',
+  entry: '初中基础', sh_zhongkao: '上海中考', gaokao: '全国高考', sh_gaokao: '上海高考',
+  cet4: '四级', cet6: '六级', ielts: '雅思', toefl: '托福',
 } as const;
 export type ReadingLevel = keyof typeof READING_LEVELS;
 export interface ReadingLocationRequest { questionId?: string; paragraph?: number; attemptId?: string }
 export interface ReadingLocation { unitId: string; questionId?: string; paragraph?: number; attemptId?: string }
 export interface ReadingGloss { term: string; explanation: string; kind: 'word' | 'genshin' }
 export interface ReadingQuestion {
-  passageId?: string; pooled?: boolean; id: string; type: 'choice' | 'fill'; format: string; prompt: string; skill: string; hint: string;
-  options?: Array<{ id: string; text: string }>; firstLetter?: string; wordLimit?: number;
+  passageId?: string; pooled?: boolean; id: string; type: 'choice' | 'fill' | 'multi'; format: string; prompt: string; skill: string; hint: string;
+  options?: Array<{ id: string; text: string }>; firstLetter?: string; wordLimit?: number; selectCount?: number;
 }
 export type ReadingCompletionStatus = 'unsubmitted' | 'completed' | 'perfect';
 export interface ReadingUnitSummary {
@@ -58,4 +59,5 @@ export interface ReadingPassage {
   glossary?: ReadingGloss[];
   optionPool?: Array<{id: string; text: string}>;
   paragraphLabels?: Array<{label: string; paragraphs: number[]}>;
+  summaryText?: string;
 }
