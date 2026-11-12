@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { app } from 'electron';
-import { getBundledReadingPackagePath, getReadingPackagesDir } from './paths';
+import { getBundledReadingPackagePaths, getReadingPackagesDir } from './paths';
 import { openProgressDb } from './progress-db';
 import { decodeReadingPackage, encodeReadingPackage, compareReadingPackageVersions, READING_PACKAGE_LIMITS } from './reading-package-format';
 import type { ValidatedReadingPackage, ReadingPackageParagraphs } from '../shared/reading-package';
@@ -18,7 +18,7 @@ interface Registry {
 }
 interface Revision { validated: ValidatedReadingPackage; units: ReadingDefinition[]; legacyUnits: ReadingDefinition[] }
 interface Store {
-  root: string; bundle: string | null; registry: Registry; revisions: Map<string, Revision>;
+  root: string; bundles: string[]; registry: Registry; revisions: Map<string, Revision>;
   active: Map<string, Revision>; errors: ReadingPackageInfo[]; initializing: boolean;
 }
 interface PreviewToken { file: string; digest: string; expires: number }
@@ -282,9 +282,9 @@ function activate(store: Store, value: ValidatedReadingPackage, builtIn: boolean
 /** Lazily initialize only after app paths (or an isolated fixture's paths) have been selected. */
 export function ensureReadingPackages(): void {
   const root = path.resolve(getReadingPackagesDir());
-  const bundle = getBundledReadingPackagePath();
-  if (currentStore?.root === root && currentStore.bundle === bundle) return;
-  const store: Store = { root, bundle, registry: emptyRegistry(), revisions: new Map(), active: new Map(), errors: [], initializing: true };
+  const bundles = getBundledReadingPackagePaths();
+  if (currentStore?.root === root && currentStore.bundles.join('\0') === bundles.join('\0')) return;
+  const store: Store = { root, bundles, registry: emptyRegistry(), revisions: new Map(), active: new Map(), errors: [], initializing: true };
   currentStore = store;
   activeReadingUnits.splice(0); activeLegacyReadingUnits.splice(0); previews.clear();
   fs.mkdirSync(root, { recursive: true });
@@ -315,7 +315,7 @@ export function ensureReadingPackages(): void {
   }
   loadPinnedRevisions(store);
   publishArrays(store);
-  if (bundle) {
+  for (const [index, bundle] of bundles.entries()) {
     try {
       const value = readPackage(bundle);
       const existing = store.registry.active.find(entry => entry.id === value.data.manifest.id);
@@ -323,7 +323,7 @@ export function ensureReadingPackages(): void {
         activate(store, value, true);
     }
     catch (error) {
-      let id = 'bundled-base', name = '内置阅读包';
+      let id = 'bundled-' + index, name = '内置阅读包';
       try { const value = readPackage(bundle); id = value.data.manifest.id; name = value.data.manifest.name; } catch { /* Display a bundle-level error. */ }
       store.errors.push({ id, name, version: '', formatVersion: 1, unitCount: 0, questionCount: 0,
         builtIn: true, status: 'error', message: errorText(error) });

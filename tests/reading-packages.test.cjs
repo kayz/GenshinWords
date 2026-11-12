@@ -218,3 +218,16 @@ test('reading package author CLI: source-image file paths cannot leave the autho
   const result=spawnSync(process.execPath,[path.join(root,'scripts/reading-package.cjs'),'pack',author,'--out',target],{cwd:f.directory,encoding:'utf8',windowsHide:true});
   assert.notEqual(result.status,0);assert.equal(fs.existsSync(target),false);
 });
+
+test('reading packages: multiple bundled packages activate together', async t => {
+  const f = packageFixture(t);
+  const one = dataFor(f, { packageId: 'bundled.one', unitId: 'bundled-one' });
+  const two = dataFor(f, { packageId: 'bundled.two', unitId: 'bundled-two' });
+  const files = [fileFor(f, one, 'bundled-one.gwreading'), fileFor(f, two, 'bundled-two.gwreading')];
+  const main = loadMain(f.contentPath, f.progressPath, { bundledReadingPackagePath: null, bundledReadingPackages: files });
+  try {
+    const store = main.load('reading-package-store'), reading = main.load('reading');
+    assert.equal(reading.listReadingUnits().length, 2);
+    assert.equal(store.listReadingPackages().filter(entry => entry.builtIn).length, 2);
+  } finally { main.close(); }
+});

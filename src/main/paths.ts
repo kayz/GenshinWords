@@ -48,6 +48,15 @@ export function getBundledReadingPackagePath(): string | null {
   const file = path.join(getBundledContentDir(), 'reading', 'base.gwreading');
   return fs.existsSync(file) ? file : null;
 }
+export function getBundledReadingPackagePaths(): string[] {
+  const directory = path.join(getBundledContentDir(), 'reading');
+  try {
+    return fs.readdirSync(directory).filter(name => name.toLowerCase().endsWith('.gwreading')).sort()
+      .map(name => path.join(directory, name)).filter(file => {
+        try { return fs.statSync(file).isFile(); } catch { return false; }
+      });
+  } catch { return []; }
+}
 export function getImagePath(relativePath) {
   if (typeof relativePath !== 'string') throw new Error('Invalid local asset path');
   if (/^gwcontent(?:[\\/]|$)/i.test(relativePath)) {

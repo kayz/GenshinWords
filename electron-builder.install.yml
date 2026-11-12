@@ -14,8 +14,10 @@ files:
 # The installer carries the program and independently versioned built-in reading
 # and word packages. Base databases and raw media are imported separately.
 extraResources:
-  - from: content/reading/base.gwreading
-    to: content/reading/base.gwreading
+  - from: content/reading
+    to: content/reading
+    filter:
+      - '*.gwreading'
   - from: content/word-books
     to: content/word-books
     filter:

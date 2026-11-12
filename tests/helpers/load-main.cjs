@@ -16,6 +16,7 @@ function loadMain(contentPath, progressPath = ':memory:', options = {}) {
     : (fs.existsSync(path.join(path.dirname(contentPath), 'reading/base.gwreading'))
       ? path.join(path.dirname(contentPath), 'reading/base.gwreading')
       : path.join(root, 'content/reading/base.gwreading'));
+  const bundledPackages = options.bundledReadingPackages ?? (bundledPackage ? [bundledPackage] : []);
   function load(filename) {
     filename = path.resolve(root, 'src/main', filename);
     if (filename.endsWith('.json')) return JSON.parse(fs.readFileSync(filename, 'utf8'));
@@ -52,6 +53,7 @@ function loadMain(contentPath, progressPath = ':memory:', options = {}) {
           getContentDir:()=>directory, getBundledContentDir:()=>directory, getMediaDir:()=>media,
           getContentPackagesDir:()=>options.contentPackagesDir || path.join(memoryDirectory || path.dirname(progressPath), 'content-packages'),
           getReadingPackagesDir:()=>packageDirectory, getBundledReadingPackagePath:()=>bundledPackage,
+          getBundledReadingPackagePaths:()=>bundledPackages,
           getImagePath: image, getAudioPath: file => { if (file.startsWith('gwcontent/')) { const resolved = load('content-package-store').getManagedMediaPath(file, true); if (!resolved) throw Error('Invalid fixture managed audio path'); return resolved; } return asset(media, file); }, containedPath:asset };
       }
       if (name.startsWith('.')) return load(path.resolve(path.dirname(filename), name));
