@@ -31,3 +31,6 @@ progress.db-*
 
 # 本地制作的发行附件不提交。
 /release/
+
+# 本机编辑器配置
+/.trae/

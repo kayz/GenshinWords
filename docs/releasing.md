@@ -85,3 +85,7 @@ npm run reading:validate -- release/my-reading.gwreading
 发布安装程序前，应在干净Windows环境离线检查缺资料引导、资源目录选择/重新扫描/热载入与再次打开、单文件导入/重启、发音/剧情/单词、阅读判分/收藏/PDF、再次打开和升级后的数据保留。安装器构建通过不等于已完成操作系统安装、升级和卸载验证。
 
 历史完整便携构建 `npm run build:portable` 保留，使用 `electron-builder.yml` 封装完整content；不作默认发行方式，不在GitHub分发。既有性能与检查记录见[阅读包验收](reading-packages-verification.md)和[内容管理验收](content-packages-verification.md)。
+
+## 1.3.1 发布状态
+
+当前安装程序仅带 base.gwreading 缺省阅读包，八个完整级别补充包独立分发。运行 node scripts/audit-release.cjs 检查九包数量和编号一致性。数量、教学审核边界及 macOS、资料保护和开源范围建议见[1.3.1 发布检查](release-review-1.3.1.md)。

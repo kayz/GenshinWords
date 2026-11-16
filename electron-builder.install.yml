@@ -11,13 +11,15 @@ files:
   - out/**/*
   - package.json
 
-# The installer carries the program and independently versioned built-in reading
-# and word packages. Base databases and raw media are imported separately.
+# The installer carries the program, the default reading set and word books.
+# The default set keeps a few units for every level; full level packages are
+# distributed separately and loaded through the reading package directory.
+# Base databases and raw media are imported separately.
 extraResources:
   - from: content/reading
     to: content/reading
     filter:
-      - '*.gwreading'
+      - 'base.gwreading'
   - from: content/word-books
     to: content/word-books
     filter:
